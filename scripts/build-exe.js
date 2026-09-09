@@ -35,7 +35,11 @@ function ensureTools() {
   if (!fs.existsSync(path.join(root, 'node_modules', 'postject'))) need.push('postject@1.0.0-alpha.6');
   if (need.length) {
     console.log(`[1/5] 安装打包工具 ${need.join(', ')} …`);
-    run('npm', ['install', '--no-save', '--no-audit', '--no-fund', ...need]);
+    // npm 在 Windows 是 npm.cmd,必须经 shell 调起
+    const r = spawnSync('npm', ['install', '--no-save', '--no-audit', '--no-fund', ...need], {
+      stdio: 'inherit', cwd: root, shell: true,
+    });
+    if (r.status !== 0) throw new Error(`npm install 打包工具失败(exit ${r.status})`);
   } else {
     console.log('[1/5] 打包工具已就绪');
   }
