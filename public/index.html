@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基金估值趋势监测</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">📈</span>
+    <div>
+      <h1>基金估值趋势监测</h1>
+      <div class="sub">每分钟同步估值 · 红涨绿跌 · 多源负载均衡</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <div class="search-box">
+      <input id="searchInput" type="text" placeholder="搜索基金代码 / 名称 / 拼音… (Ctrl+K)"
+             autocomplete="off" spellcheck="false">
+      <div id="searchResults" class="search-results hidden"></div>
+    </div>
+    <button id="syncBtn" class="btn" title="立即同步">⟳ 立即同步</button>
+    <button id="reportBtn" class="btn" title="推送一次关注基金的预估当日涨跌">📊 收盘预估</button>
+    <button id="updateBtn" class="btn" title="检查并应用更新">⬆ 更新</button>
+    <div class="sync-status" id="syncStatus">–</div>
+  </div>
+</header>
+
+<main>
+  <section id="fundList" class="fund-list">
+    <div class="loading">加载中…</div>
+  </section>
+
+  <section id="emptyState" class="empty hidden">
+    <div class="empty-icon">🗂️</div>
+    <p>还没有关注的基金,点击上方搜索添加。</p>
+  </section>
+</main>
+
+<!-- 概要抽屉 -->
+<div id="drawerMask" class="drawer-mask hidden"></div>
+<aside id="drawer" class="drawer hidden" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <div id="dTitle" class="d-title">—</div>
+      <div id="dSub" class="d-sub">—</div>
+    </div>
+    <button id="dClose" class="btn icon-btn" title="关闭">✕</button>
+  </div>
+  <div id="dBody" class="drawer-body">
+    <div class="loading">加载概要…</div>
+  </div>
+</aside>
+
+<div id="toast" class="toast hidden"></div>
+<div id="eventFeed" class="event-feed" title="提醒事件流"></div>
+
+<footer class="foot">
+  <span id="srcStats" class="src-stats"></span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

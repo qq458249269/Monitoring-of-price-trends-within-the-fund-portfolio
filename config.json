@@ -1,0 +1,40 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8787
+  },
+  "sync": {
+    "intervalMs": 60000,
+    "jitterMs": 8000,
+    "maxFundsPerCycle": 40
+  },
+  "rateLimit": {
+    "minIntervalMs": 800,
+    "maxPerMinute": 20,
+    "staggerMs": 2500,
+    "backoffBaseMs": 30000,
+    "backoffMaxMs": 900000
+  },
+  "summaryCacheMs": 21600000,
+  "navHistoryCacheMs": 3600000,
+  "alertThresholds": [
+    0.5,
+    1.0,
+    2.0,
+    -0.5,
+    -1.0,
+    -2.0
+  ],
+  "closingReport": {
+    "enabled": true,
+    "time": "14:50",
+    "holidays": []
+  },
+  "update": {
+    "enabled": true,
+    "intervalMs": 21600000
+  },
+  "defaults": [
+    { "code": "017811", "name": "东方人工智能主题混合C" }
+  ]
+}

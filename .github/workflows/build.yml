@@ -1,0 +1,87 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+
+      - name: Run tests
+        run: npm test
+
+      - name: Bump version (patch)
+        id: bump
+        run: node scripts/bump-version.js
+
+      - name: Generate build metadata
+        id: meta
+        shell: bash
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          node scripts/gen-version.js --version "${{ steps.bump.outputs.version }}" --build "${{ github.run_number }}" --sha "$SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      # ---------- SEA 单文件 exe ----------
+      - name: Build SEA exe
+        run: |
+          node scripts/build-exe.js
+          node scripts/make-digests.js dist/FundTrendMonitor.exe
+
+      # ---------- Electron portable exe ----------
+      - name: Build Electron portable exe
+        run: npm run build:desktop
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+          APP_VERSION: ${{ steps.bump.outputs.version }}
+
+      - name: Digest portable exe
+        shell: bash
+        run: |
+          node scripts/make-digests.js \
+            dist/FundTrendMonitor.exe \
+            release/FundTrendMonitor-Portable.exe
+
+      - name: Commit version bump
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION package.json
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.version }} [skip ci]" || echo "nothing to commit"
+          git push
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.version }}
+          name: ${{ steps.bump.outputs.version }}
+          body: |
+            自动构建 ${{ steps.bump.outputs.version }} (build #${{ github.run_number }}, commit ${{ steps.meta.outputs.sha }})
+
+            - `FundTrendMonitor.exe` — SEA 单文件版(命令行/服务器)
+            - `FundTrendMonitor-Portable.exe` — Electron 桌面版(原生窗口+系统通知)
+
+            客户端会自动检测此 release 并下载更新(SHA256 校验)。
+          files: |
+            dist/FundTrendMonitor.exe
+            release/FundTrendMonitor-Portable.exe
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true

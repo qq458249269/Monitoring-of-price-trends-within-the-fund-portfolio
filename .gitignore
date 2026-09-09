@@ -1,0 +1,8 @@
+node_modules/
+data/
+dist/
+release/
+sea-test/
+*.log
+.DS_Store
+scripts/version.json

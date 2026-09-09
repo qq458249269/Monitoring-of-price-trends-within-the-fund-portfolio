@@ -1,0 +1,28 @@
+{
+  "appId": "com.freebuff.fund-trend-monitor",
+  "productName": "FundTrendMonitor",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "server.js",
+    "src/**/*",
+    "electron/**/*",
+    "public/**/*",
+    "config.json",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "FundTrendMonitor-Portable.exe"
+  },
+  "npmRebuild": false
+}

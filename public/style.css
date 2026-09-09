@@ -1,0 +1,188 @@
+:root {
+  --bg: #0f1419;
+  --panel: #171e26;
+  --panel2: #1d2630;
+  --border: #2a3644;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --up: #f04a4a;      /* 红涨 */
+  --down: #2ecc71;    /* 绿跌 */
+  --flat: #9aa7b4;
+  --accent: #4da3ff;
+  --warn: #f0a04a;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  padding-bottom: 60px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 22px;
+  background: linear-gradient(180deg, #131a22, #10161d);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 30; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { font-size: 26px; }
+.brand h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.brand .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-box { position: relative; }
+#searchInput {
+  width: 300px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); outline: none; font-size: 13px;
+}
+#searchInput:focus { border-color: var(--accent); }
+.search-results {
+  position: absolute; top: 40px; left: 0; width: 360px; max-height: 380px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.45); z-index: 50;
+}
+.sr-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #212b36;
+}
+.sr-item:last-child { border-bottom: none; }
+.sr-item:hover { background: var(--panel2); }
+.sr-item .code { color: var(--accent); font-family: ui-monospace, monospace; font-size: 12px; }
+.sr-item .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sr-empty { padding: 12px; color: var(--muted); font-size: 12px; }
+
+.btn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+  transition: background .15s;
+}
+.btn:hover { background: #243140; }
+.btn.icon-btn { padding: 4px 10px; font-size: 14px; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.sync-status { font-size: 11px; color: var(--muted); min-width: 130px; text-align: right; }
+
+/* ---------- 基金列表 ---------- */
+main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
+.fund-list { display: flex; flex-direction: column; gap: 12px; }
+
+.fund-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px; cursor: pointer; transition: border-color .15s, transform .1s;
+}
+.fund-card:hover { border-color: #3d5068; }
+.fund-card.selected { border-color: var(--accent); }
+
+.fc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.fc-name { font-size: 15px; font-weight: 600; }
+.fc-code { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; margin-left: 6px; }
+.fc-tag {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px;
+  background: #22303f; color: var(--muted); vertical-align: 2px;
+}
+.fc-right { display: flex; align-items: baseline; gap: 14px; }
+.fc-estimate { font-size: 22px; font-weight: 700; font-family: ui-monospace, "DIN Alternate", monospace; }
+.fc-rate { font-size: 15px; font-weight: 700; font-family: ui-monospace, monospace; min-width: 74px; text-align: right; }
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--flat); }
+
+.fc-body { display: flex; align-items: center; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+.fc-chart { flex: 1 1 260px; min-width: 220px; }
+.fc-chart svg { width: 100%; height: 54px; display: block; }
+.fc-meta { display: flex; gap: 14px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
+.fc-meta b { color: var(--text); font-weight: 600; }
+
+.fc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.fc-trend { font-size: 11px; color: var(--muted); }
+.fc-actions { display: flex; gap: 8px; }
+.mini-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer;
+}
+.mini-btn:hover { color: var(--text); border-color: var(--accent); }
+.mini-btn.danger:hover { color: var(--up); border-color: var(--up); }
+
+/* ---------- 抽屉 ---------- */
+.drawer-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
+}
+.drawer {
+  position: fixed; top: 0; right: 0; height: 100%; width: min(480px, 94vw);
+  background: var(--panel); border-left: 1px solid var(--border); z-index: 45;
+  display: flex; flex-direction: column; box-shadow: -16px 0 40px rgba(0,0,0,.5);
+}
+.drawer-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.d-title { font-size: 16px; font-weight: 700; }
+.d-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.drawer-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+
+.kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-bottom: 16px; }
+.kv { background: var(--panel2); border-radius: 8px; padding: 8px 12px; }
+.kv .k { font-size: 11px; color: var(--muted); }
+.kv .v { font-size: 13px; margin-top: 3px; font-weight: 600; }
+
+.sec-title { font-size: 13px; font-weight: 700; margin: 18px 0 8px; color: var(--accent); }
+.returns-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ret-cell { background: var(--panel2); border-radius: 8px; padding: 8px; text-align: center; }
+.ret-cell .k { font-size: 10px; color: var(--muted); }
+.ret-cell .v { font-size: 13px; font-weight: 700; margin-top: 3px; font-family: ui-monospace, monospace; }
+
+.nav-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.nav-table th, .nav-table td { padding: 6px 8px; text-align: right; border-bottom: 1px solid #222d3a; }
+.nav-table th { color: var(--muted); font-weight: 500; }
+.nav-table th:first-child, .nav-table td:first-child { text-align: left; }
+
+.holder-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 6px 0; background: #22303f; }
+.holder-org { background: #4da3ff; }
+.holder-ind { background: #7c6cf0; }
+
+/* ---------- 事件流 ---------- */
+.event-feed {
+  position: fixed; right: 18px; bottom: 54px; width: 300px; max-height: 40vh; overflow-y: auto;
+  z-index: 35; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.evt {
+  background: rgba(23,30,38,.96); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 8px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  animation: slidein .25s ease;
+}
+.evt.alert { border-left-color: var(--warn); }
+@keyframes slidein { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---------- 其它 ---------- */
+.empty { text-align: center; color: var(--muted); padding: 60px 0; }
+.empty-icon { font-size: 42px; margin-bottom: 8px; }
+.loading { color: var(--muted); padding: 30px; text-align: center; }
+.foot {
+  position: fixed; bottom: 0; left: 0; right: 0; background: #10161d;
+  border-top: 1px solid var(--border); padding: 8px 18px; font-size: 11px; color: var(--muted);
+  display: flex; justify-content: space-between; z-index: 30;
+}
+.toast {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: #2a3644; color: var(--text); border-radius: 8px; padding: 9px 18px;
+  font-size: 13px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+
+@media (max-width: 720px) {
+  #searchInput { width: 100%; }
+  .search-results { width: 100%; }
+  .topbar { padding: 12px; }
+  main { padding: 12px; }
+  .fc-estimate { font-size: 18px; }
+}
