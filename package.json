@@ -1,6 +1,6 @@
 {
   "name": "fund-trend-monitor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "基金持仓价格变动趋势监测客户端 · 每分钟同步估值 · 红涨绿跌 · 多信息源负载均衡",
   "main": "electron/main.js",
   "scripts": {
