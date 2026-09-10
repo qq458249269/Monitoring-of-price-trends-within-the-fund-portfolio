@@ -21,6 +21,8 @@
       }
     ]
   },
+  "compression": "maximum",
+  "asar": true,
   "portable": {
     "artifactName": "FundTrendMonitor-Portable.exe"
   },

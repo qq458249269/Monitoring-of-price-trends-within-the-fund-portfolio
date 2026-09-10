@@ -171,6 +171,20 @@ function createApiHandler({ store, registry, monitor, cfg, log = () => {}, app }
         });
       }
 
+      /* ---------- 手动切换估值数据源 ---------- */
+      if (pathname === '/api/sources/quote' && req.method === 'GET') {
+        return sendJson(res, 200, { preferred: registry.getPreferredSource(), available: ['auto', 'sina', 'tencent', 'tiantian'] });
+      }
+      if (pathname === '/api/sources/quote' && req.method === 'POST') {
+        const body = await readBody(req);
+        const name = String(body.source || '').trim();
+        const ok = registry.setPreferredSource(name);
+        if (!ok) return sendJson(res, 400, { error: `无效数据源:${name}` });
+        // 切换后立即同步,尽快用新源拉数据
+        monitor.syncOnce().catch(() => {});
+        return sendJson(res, 200, { ok: true, preferred: registry.getPreferredSource() });
+      }
+
       return sendJson(res, 404, { error: 'not found' });
     } catch (err) {
       log(`API ${pathname} 错误:${err.message}`);

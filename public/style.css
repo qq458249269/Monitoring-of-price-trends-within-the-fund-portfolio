@@ -67,10 +67,18 @@ body {
   transition: background .15s;
 }
 .btn:hover { background: #243140; }
+.light .btn:hover { background: #d0d7e0; }
+.light .btn:hover { background: #d0d7e0; }
+.light .source-select:hover { background: #d0d7e0; }
 .btn.icon-btn { padding: 4px 10px; font-size: 14px; }
 .btn:disabled { opacity: .5; cursor: default; }
 
 .sync-status { font-size: 11px; color: var(--muted); min-width: 130px; text-align: right; }
+.source-select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 12px;
+  appearance: auto;
+}
 
 /* ---------- 基金列表 ---------- */
 main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
@@ -81,6 +89,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
   padding: 14px 18px; cursor: pointer; transition: border-color .15s, transform .1s;
 }
 .fund-card:hover { border-color: #3d5068; }
+.light .fund-card:hover { border-color: #b0bac5; }
 .fund-card.selected { border-color: var(--accent); }
 
 .fc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -90,6 +99,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
   font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px;
   background: #22303f; color: var(--muted); vertical-align: 2px;
 }
+.light .fc-tag { background: #e4e8ed; color: var(--muted); }
 .fc-right { display: flex; align-items: baseline; gap: 14px; }
 .fc-estimate { font-size: 22px; font-weight: 700; font-family: ui-monospace, "DIN Alternate", monospace; }
 .fc-rate { font-size: 15px; font-weight: 700; font-family: ui-monospace, monospace; min-width: 74px; text-align: right; }
@@ -174,10 +184,47 @@ main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
   display: flex; justify-content: space-between; z-index: 30;
 }
 .toast {
-  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
   background: #2a3644; color: var(--text); border-radius: 8px; padding: 9px 18px;
   font-size: 13px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  max-width: 90vw; text-align: center;
 }
+
+/* ---------- 亮色主题(跟随系统 or 手动) ---------- */
+:root.light {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel2: #f0f1f4;
+  --border: #dce1e8;
+  --text: #1a2028;
+  --muted: #5c6775;
+  --up: #d63031;
+  --down: #00a870;
+  --flat: #6c7784;
+  --accent: #1a73e8;
+  --warn: #e08200;
+}
+body.light { background: var(--bg); color: var(--text); }
+.light .topbar { background: linear-gradient(180deg, #e8ecf1, #e3e7ec); border-bottom-color: var(--border); }
+.light .fund-card { background: var(--panel); border-color: var(--border); }
+.light .fund-card:hover { border-color: #b0bac5; }
+.light .evt { background: rgba(255,255,255,.97); }
+.light .evt.alert { border-left-color: var(--warn); }
+.light .toast { background: #2a3644; color: #fff; }
+.light .search-results { background: var(--panel); border-color: var(--border); }
+.light .sr-item { border-bottom-color: var(--border); }
+.light .sr-item:hover { background: var(--panel2); }
+.light .drawer { background: var(--panel); border-left-color: var(--border); }
+.light .drawer-head { border-bottom-color: var(--border); }
+.light .kv { background: var(--panel2); }
+.light .ret-cell { background: var(--panel2); }
+.light .nav-table th, .light .nav-table td { border-bottom-color: #e4e8ed; }
+.light .holder-bar { background: #e4e8ed; }
+.light .evt { background: rgba(255,255,255,.97); }
+.light .foot { background: #e3e7ec; border-top-color: var(--border); }
+.light .toast { background: #f0f1f4; color: var(--text); }
+.light .mini-btn { border-color: var(--border); color: var(--muted); }
+.light .mini-btn:hover { color: var(--text); border-color: var(--accent); }
 
 @media (max-width: 720px) {
   #searchInput { width: 100%; }

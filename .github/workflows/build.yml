@@ -26,16 +26,14 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Bump version (patch)
-        id: bump
-        run: node scripts/bump-version.js
-
-      - name: Generate build metadata
+      - name: Generate build metadata (YYYYMMDD.buildCount)
         id: meta
         shell: bash
         run: |
           SHA=$(git rev-parse --short HEAD)
-          node scripts/gen-version.js --version "${{ steps.bump.outputs.version }}" --build "${{ github.run_number }}" --sha "$SHA"
+          BUILD_NUM=${GITHUB_RUN_NUMBER: -2}
+          VERSION=$(node scripts/gen-version.js --build "$BUILD_NUM" --sha "$SHA" 2>&1 | sed -n 's/^build meta: v//p' | cut -d' ' -f1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       # ---------- SEA 单文件 exe ----------
@@ -50,7 +48,7 @@ jobs:
         env:
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-          APP_VERSION: ${{ steps.bump.outputs.version }}
+          APP_VERSION: ${{ steps.meta.outputs.version }}
 
       - name: Digest portable exe
         shell: bash
@@ -65,16 +63,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION package.json
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.version }} [skip ci]" || echo "nothing to commit"
+          git commit -m "chore: bump version to ${{ steps.meta.outputs.version }} [skip ci]" || echo "nothing to commit"
           git push
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.version }}
-          name: ${{ steps.bump.outputs.version }}
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: ${{ steps.meta.outputs.version }}
           body: |
-            自动构建 ${{ steps.bump.outputs.version }} (build #${{ github.run_number }}, commit ${{ steps.meta.outputs.sha }})
+            自动构建 ${{ steps.meta.outputs.version }} (build #${{ github.run_number }}, commit ${{ steps.meta.outputs.sha }})
 
             - `FundTrendMonitor.exe` — SEA 单文件版(命令行/服务器)
             - `FundTrendMonitor-Portable.exe` — Electron 桌面版(原生窗口+系统通知)

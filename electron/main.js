@@ -76,7 +76,8 @@ async function bootServer() {
   const { monitor } = appHandle;
   monitor.onEvent((evt) => {
     if (evt.type === 'alert') {
-      notify('估值提醒', evt.payload.message, true);
+      const icon = evt.payload.type === 'anomaly' ? '⚡' : '⚠';
+      notify(`${icon} ${evt.payload.type === 'anomaly' ? '异动' : '估值提醒'}`, evt.payload.message, true);
     } else if (evt.type === 'closing-report') {
       const items = (evt.payload.items || []).filter((x) => x.estimateRate !== null && x.estimateRate !== undefined);
       const up = items.filter((x) => x.estimateRate > 0).length;

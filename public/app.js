@@ -195,8 +195,9 @@ function connectStream() {
   es.addEventListener('alert', (e) => {
     try {
       const a = JSON.parse(e.data);
+      const icon = a.type === 'anomaly' ? '⚡' : '⚠';
       pushEvent(`${a.message}`, true);
-      toast(`⚠ ${a.message}`, 4000);
+      toast(`${icon} ${a.message}`, 6000);
     } catch { /* ignore */ }
   });
   es.addEventListener('closing-report', (e) => {
@@ -213,9 +214,24 @@ function pushEvent(text, isAlert) {
   const div = document.createElement('div');
   div.className = `evt${isAlert ? ' alert' : ''}`;
   div.textContent = `${isAlert ? '⚠ ' : ''}${text}`;
+  if (isAlert) {
+    // 通知提示常驻:加关闭按钮,不自动消失
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'evt-close';
+    closeBtn.textContent = ' ✕';
+    closeBtn.style.cssText = 'cursor:pointer;float:right;margin-left:8px;opacity:.6;font-size:11px';
+    closeBtn.onclick = () => div.remove();
+    div.appendChild(closeBtn);
+  }
   feed.prepend(div);
-  while (feed.children.length > 8) feed.removeChild(feed.lastChild);
-  setTimeout(() => div.remove(), 60000);
+  // 仅限非alert事件自动消失(最多8条,5分钟后清除)
+  if (isAlert) {
+    // alert 类型常驻不自动消失,仅限制显示数量
+    while (feed.children.length > 12) feed.removeChild(feed.lastChild);
+  } else {
+    while (feed.children.length > 8) feed.removeChild(feed.lastChild);
+    setTimeout(() => div.remove(), 5 * 60 * 1000);
+  }
 }
 
 /* ---------- 搜索 ---------- */
@@ -518,6 +534,81 @@ function bindSyncBtn() {
   });
 }
 
+/* ---------- 数据源手动切换 ---------- */
+async function loadSourcePreference() {
+  try {
+    const { preferred } = await api('/api/sources/quote');
+    const sel = $('#sourceSelect');
+    if (sel) sel.value = preferred || 'auto';
+  } catch { /* ignore */ }
+}
+
+function bindSourceSelect() {
+  const sel = $('#sourceSelect');
+  if (!sel) return;
+  sel.addEventListener('change', async () => {
+    const source = sel.value;
+    try {
+      const { preferred } = await api('/api/sources/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      toast(`已切换到 ${preferred === 'auto' ? '自动轮询' : preferred} 数据源`);
+      pushEvent(`数据源已切换为 ${preferred === 'auto' ? '自动轮询' : preferred}`);
+      setTimeout(loadFunds, 1500); // 等首次使用新源同步
+    } catch (err) {
+      toast(`切换失败:${err.message}`);
+    }
+  });
+  loadSourcePreference();
+}
+
+/* ---------- 日夜主题切换 ---------- */
+const THEME_KEY = 'fundmon-theme'; // 'dark' | 'light' | 'system'
+let currentTheme = 'dark';
+
+function applyTheme(mode) {
+  currentTheme = mode;
+  localStorage.setItem(THEME_KEY, mode);
+  const btn = $('#themeBtn');
+  if (mode === 'system') {
+    const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.className = sysDark ? '' : 'light';
+    document.body.className = sysDark ? '' : 'light';
+    if (btn) btn.textContent = '💻';
+  } else if (mode === 'light') {
+    document.documentElement.className = 'light';
+    document.body.className = 'light';
+    if (btn) btn.textContent = '☀️';
+  } else {
+    document.documentElement.className = '';
+    document.body.className = '';
+    if (btn) btn.textContent = '🌙';
+  }
+}
+
+function bindThemeBtn() {
+  const btn = $('#themeBtn');
+  if (!btn) return;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved && ['dark', 'light', 'system'].includes(saved)) {
+    applyTheme(saved);
+  } else {
+    applyTheme('system'); // 默认跟随系统
+  }
+  btn.addEventListener('click', () => {
+    // 循环: dark → light → system → dark
+    const next = currentTheme === 'dark' ? 'light' : currentTheme === 'light' ? 'system' : 'dark';
+    applyTheme(next);
+    toast(`主题:${{ dark: '暗色', light: '亮色', system: '跟随系统' }[next]}`);
+  });
+  // 跟随系统模式:监听系统主题变化
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (currentTheme === 'system') applyTheme('system');
+  });
+}
+
 /* ---------- 启动 ---------- */
 function refreshSourcesLoop() {
   const loop = async () => {
@@ -536,6 +627,8 @@ bindDrawer();
 bindSyncBtn();
 bindClosingReportBtn();
 bindUpdateBtn();
+bindThemeBtn();
+bindSourceSelect();
 connectStream();
 loadFunds();
 refreshSourcesLoop();

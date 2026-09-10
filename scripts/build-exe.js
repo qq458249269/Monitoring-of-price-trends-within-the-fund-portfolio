@@ -60,6 +60,7 @@ function main() {
     '--platform=node',
     '--format=cjs',
     '--target=node18',
+    '--minify',
     '--outfile=dist/bundle.cjs',
     `--define:APP_VERSION=${JSON.stringify(meta.version)}`,
   ], { shell: false });

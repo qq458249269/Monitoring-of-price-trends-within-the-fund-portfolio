@@ -4,6 +4,7 @@
 
 const sina = require('./sina');
 const tencent = require('./tencent');
+const tiantian = require('./tiantian');
 const eastmoney = require('./eastmoney');
 const danjuan = require('./danjuan');
 const { Backoff } = require('../ratelimit');
@@ -23,19 +24,12 @@ const QUOTE_SOURCES = [
     },
   },
   {
-    name: 'tencent',
+    name: 'tiantian',
     fetch: async (limiter, codes, cfg) => {
-      const raw = await tencent.fetchNavs(limiter, codes, cfg);
+      const raw = await tiantian.fetchQuotes(limiter, codes, cfg);
       const out = new Map();
       for (const [code, q] of raw) {
-        out.set(code, {
-          estimate: q.nav,
-          estimateRate: q.dayChangePct,
-          time: q.navDate,
-          date: q.navDate,
-          prevNav: q.nav,
-          isNav: true, // 标记:这是确认净值而非实时估值
-        });
+        out.set(code, { ...q, isNav: false });
       }
       return out;
     },
@@ -53,6 +47,20 @@ class SourceRegistry {
     this.danjuanBackoff = new Backoff({ baseMs: cfg.rateLimit.backoffBaseMs, maxMs: cfg.rateLimit.backoffMaxMs });
     this.summaryCache = new Map(); // code -> {at, data}
     this.navHistoryCache = new Map(); // code -> {at, data}
+    // 手动指定估值源:'auto' 表示轮询负载均衡,否则为具体源名
+    this.preferredSource = (cfg && cfg.quoteSource) || 'auto';
+  }
+
+  /** 设置首选估值源('auto' | 'sina' | 'tencent' | 'tiantian') */
+  setPreferredSource(name) {
+    const valid = ['auto', ...QUOTE_SOURCES.map((s) => s.name)];
+    if (!valid.includes(name)) return false;
+    this.preferredSource = name;
+    return true;
+  }
+
+  getPreferredSource() {
+    return this.preferredSource;
   }
 
   _quoteBackoff(name) {
@@ -70,11 +78,17 @@ class SourceRegistry {
    */
   async fetchQuotes(codes) {
     const n = QUOTE_SOURCES.length;
+    // 手动指定源:优先尝试它,失败再按轮询顺序回退其余源
     const order = [];
+    const manual = this.preferredSource !== 'auto'
+      ? QUOTE_SOURCES.find((s) => s.name === this.preferredSource)
+      : null;
+    if (manual) order.push(manual);
     for (let i = 0; i < n; i += 1) {
-      order.push(QUOTE_SOURCES[(this.rr + i) % n]);
+      const src = QUOTE_SOURCES[(this.rr + i) % n];
+      if (!order.includes(src)) order.push(src);
     }
-    this.rr = (this.rr + 1) % n; // 下次从下一源开始,均匀分摊请求
+    if (!manual) this.rr = (this.rr + 1) % n; // 下次从下一源开始,均匀分摊请求
 
     const tried = [];
     let lastErr = null;
@@ -183,6 +197,7 @@ class SourceRegistry {
   /** 供 UI 展示的源健康状态 */
   stats() {
     return {
+      preferredSource: this.preferredSource,
       quoteSources: QUOTE_SOURCES.map((s) => {
         const b = this._quoteBackoff(s.name);
         return {

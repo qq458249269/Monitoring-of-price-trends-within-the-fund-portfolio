@@ -4,6 +4,29 @@
 
 const { jitter, msUntilBeijing, beijingTimeStr } = require('./util');
 
+/** 检测估值序列中的异常波动点(大额资金异动信号,Z-score)**/
+function detectAnomalies(samples, threshold = 2) {
+  const vals = samples.filter((s) => typeof s.e === 'number' && s.e !== null);
+  if (vals.length < 8) return [];
+  const mean = vals.reduce((a, b) => a + b.e, 0) / vals.length;
+  const std = Math.sqrt(vals.reduce((a, v) => a + (v.e - mean) ** 2, 0) / vals.length);
+  if (std === 0) return [];
+  const out = [];
+  for (let i = 0; i < vals.length; i += 1) {
+    const z = (vals[i].e - mean) / std;
+    if (Math.abs(z) >= threshold) {
+      out.push({
+        at: vals[i].t,
+        value: vals[i].e,
+        zScore: Math.round(z * 100) / 100,
+        direction: z > 0 ? 'up' : 'down',
+        magnitude: Math.abs(z),
+      });
+    }
+  }
+  return out;
+}
+
 /** 最小二乘斜率(x=采样序号, y=估值),返回“每采样步”变化量 */
 function linearSlope(ys) {
   const n = ys.length;
@@ -152,6 +175,7 @@ class Monitor {
         const trend = computeTrend(this.store.getHistory(fund.code, 60), fund.code, now);
         trends.push(trend);
         this.checkAlert(fund, q, prevRate, trend);
+        this.checkAnomaly(fund);
       }
 
       this.lastSyncAt = now;
@@ -195,6 +219,31 @@ class Monitor {
       estimate: quote.estimate,
       direction: rate >= 0 ? 'up' : 'down',
       message: `${fund.name}(${fund.code}) 估值 ${rate >= 0 ? '+' : ''}${rate}% ${rate >= 0 ? '涨' : '跌'}破 ${hit > 0 ? '+' : ''}${hit}% 阈值`,
+    });
+  }
+
+  /** 大额资金异动检测:基于分钟级采样 Z-score 异常值,自动推送事件 */
+  checkAnomaly(fund) {
+    const history = this.store.getHistory(fund.code, 30);
+    const anomalies = detectAnomalies(history, 2.5);
+    if (!anomalies.length) return;
+    const latest = anomalies[anomalies.length - 1];
+    const last = this._alerted.get(fund.code);
+    const key = `${fund.code}:anomaly:${latest.direction}`;
+    if (last && last.key === key && Date.now() - last.at < 15 * 60 * 1000) return;
+    this._alerted.set(fund.code, { key, at: Date.now() });
+    this.emit('alert', {
+      code: fund.code,
+      name: fund.name,
+      threshold: null,
+      estimateRate: fund.estimateRate,
+      estimate: fund.estimate,
+      direction: latest.direction,
+      zScore: latest.zScore,
+      magnitude: latest.magnitude,
+      at: latest.at,
+      message: `${fund.name}(${fund.code}) ⚡ 估值${latest.direction === 'up' ? '突增' : '急跌'} ${latest.zScore > 0 ? '+' : ''}${latest.zScore}σ(幅度 ${latest.magnitude.toFixed(1)}σ)`,
+      type: 'anomaly',
     });
   }
 

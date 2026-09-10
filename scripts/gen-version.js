@@ -13,17 +13,17 @@ function arg(name, fallback) {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-let version = arg('version');
-if (!version) {
-  const vf = path.join(root, 'VERSION');
-  version = fs.existsSync(vf) ? fs.readFileSync(vf, 'utf8').trim() : '0.0.0';
-}
+const build = arg('build', String(Date.now()));
+const versionDate = new Date();
+const pad = (n) => String(n).padStart(2, '0');
+const dateStr = `${versionDate.getFullYear()}${pad(versionDate.getMonth() + 1)}${pad(versionDate.getDate())}`;
+const version = `${dateStr}.${build}`;
 
 const meta = {
-  version: version.replace(/^v/, ''),
-  build: arg('build', String(Date.now())),
+  version,
+  build,
   sha: (arg('sha', '') || '').slice(0, 7),
-  buildTime: new Date().toISOString(),
+  buildTime: versionDate.toISOString(),
 };
 
 fs.writeFileSync(path.join(__dirname, 'version.json'), `${JSON.stringify(meta, null, 2)}\n`);
