@@ -6,3 +6,4 @@ sea-test/
 *.log
 .DS_Store
 scripts/version.json
+scripts/.build-counter.json
