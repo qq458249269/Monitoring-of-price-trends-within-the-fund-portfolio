@@ -23,15 +23,34 @@
 ### 桌面客户端(推荐)
 
 ```bash
-npm run build:desktop     # 产出 release/FundTrendMonitor-Portable.exe
+npm install                                      # 首次:安装 electron/electron-builder 等依赖
+ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ \
+ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ \
+  npm run build:desktop                          # 产出 release/FundTrendMonitor-Portable.exe
 ```
 
-双击 `FundTrendMonitor-Portable.exe` 即可:原生窗口 + 任务栏图标,内嵌监测服务,提醒走 **Windows 系统通知**(最小化也能收到)。数据/配置存于 `%APPDATA%/fund-trend-monitor/`。
+Windows PowerShell 下:
+
+```powershell
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+$env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
+npm run build:desktop
+```
+
+> 镜像变量只在**首次构建**需要——electron-builder 要从 GitHub 下载 winCodeSign/nsis 等工具,国内直连易超时;换源后秒下。产物 `release/FundTrendMonitor-Portable.exe` 约 65MB(portable 单文件,内置解压运行,数据/配置存 `%APPDATA%/fund-trend-monitor/`)。
 
 ### 单文件 exe(SEA,无 Electron)
 
 ```bash
-npm run build:exe         # 产出 dist/FundTrendMonitor.exe (~88MB)
+npm run build:exe         # 产出 dist/FundTrendMonitor.exe (~88MB),免 Node 环境
+```
+
+释放版构建(含版本号 `v年月日.序号` 与 SHA256 校验清单,供客户端自动更新):
+
+```bash
+node scripts/gen-version.js --build 01 --sha $(git rev-parse --short HEAD)
+npm run build:exe
+node scripts/make-digests.js dist/FundTrendMonitor.exe   # 生成 dist/SHA256SUMS.txt
 ```
 
 ### 命令行 Web 模式
@@ -136,7 +155,7 @@ release/             electron-builder 产物(portable)
 
 ## 版本与自动更新
 
-- 版本号在 `VERSION` 文件维护,CI 每次构建自动 patch+1 并打 tag 发布 release。
+- 版本号由 `scripts/gen-version.js` 生成(格式 `v年月日.当日构建序号`,如 `v20260911.01`),构建前运行并写入 `scripts/version.json`;`build:exe` 会把该版本注入 exe。
 - 两个 exe 都内嵌版本号,启动后日志与 `/api/update` 可查。
 - **自动更新机制**:客户端定时(默认 6h)查询 GitHub Releases,发现新版本 → 下载 `FundTrendMonitor*.exe` → SHA256 校验(`SHA256SUMS.txt`)→ 现役 exe 重命名留档(`*.old.*`)→ 新文件落位 → 重启生效。Electron 版额外支持**首跑自我安装**:portable exe 首次运行时把自身复制到 `%APPDATA%/FundTrendMonitor/FundTrendMonitor.exe`,后续更新替换该副本。
 - 手动检查:界面 `📊 收盘预估` 旁的更新按钮(或 `POST /api/update/apply`、`POST /api/update/restart` 立即重启)。

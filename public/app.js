@@ -223,6 +223,7 @@ function pushEvent(text, isAlert) {
     closeBtn.onclick = () => div.remove();
     div.appendChild(closeBtn);
   }
+  div.onclick = () => div.remove(); // 点击卡片任意处即可关闭(卡片无其它交互)
   feed.prepend(div);
   // 仅限非alert事件自动消失(最多8条,5分钟后清除)
   if (isAlert) {

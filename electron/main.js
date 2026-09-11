@@ -5,7 +5,7 @@
  * - 原生窗口 + 任务栏图标
  */
 
-const { app, BrowserWindow, Notification, shell, dialog } = require('electron');
+const { app, BrowserWindow, Notification, shell, dialog, screen } = require('electron');
 const path = require('path');
 const { ensureCanonicalCopy, checkAndInstall, canonicalExePath } = require('./updater');
 
@@ -62,7 +62,6 @@ async function bootServer() {
   logLine(`运行副本:${canonical.exePath}${canonical.copied ? '(新复制)' : ''}`);
 
   // 打包后 asar 只读:配置首跑导出到 userData
-  const fs = require('fs');
   const cfgInAsar = path.join(__dirname, '..', 'config.json');
   const cfgTarget = path.join(app.getPath('userData'), 'config.json');
   if (!fs.existsSync(cfgTarget) && fs.existsSync(cfgInAsar)) {
@@ -92,10 +91,43 @@ async function bootServer() {
   });
 }
 
+/* ---------- 窗口位置/大小记忆 ---------- */
+const fs = require('fs');
+
+function stateFile() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+/** 读取上次窗口状态,校验在当前显示器可见范围内(防止显示器变更后窗口在屏外) */
+function loadWinState() {
+  try {
+    const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
+    if (!s || typeof s.width !== 'number' || typeof s.height !== 'number') return null;
+    const vis = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      return s.x < a.x + a.width - 40 && s.x + s.width > a.x + 40 &&
+             s.y < a.y + a.height - 40 && s.y + s.height > a.y + 40;
+    });
+    return vis ? { width: s.width, height: s.height, x: s.x, y: s.y } : null;
+  } catch { return null; }
+}
+
+function saveWinState(win) {
+  try { fs.writeFileSync(stateFile(), JSON.stringify(win.getBounds())); } catch { /* 忽略 */ }
+}
+
+let saveTimer = null;
+function scheduleSaveState(win) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveWinState(win), 400); // 移动/缩放防抖落盘
+}
+
 function createWindow() {
+  const state = loadWinState();
   win = new BrowserWindow({
-    width: 1180,
-    height: 820,
+    width: state ? state.width : 1180,
+    height: state ? state.height : 820,
+    ...(state ? { x: state.x, y: state.y } : {}),
     minWidth: 860,
     minHeight: 600,
     title: '基金估值趋势监测',
@@ -125,6 +157,9 @@ function createWindow() {
   });
 
   win.on('closed', () => { win = null; });
+  win.on('resize', () => scheduleSaveState(win));
+  win.on('move', () => scheduleSaveState(win));
+  win.on('close', () => { clearTimeout(saveTimer); saveWinState(win); });
 }
 
 app.whenReady().then(async () => {

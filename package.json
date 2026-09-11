@@ -5,6 +5,8 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
+    "lint": "node scripts/check.js lint",
+    "typecheck": "node scripts/check.js typecheck",
     "test": "node --test",
     "build:exe": "node scripts/build-exe.js",
     "desktop": "electron .",
