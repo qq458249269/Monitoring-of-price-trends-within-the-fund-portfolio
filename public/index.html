@@ -28,22 +28,26 @@
     <select id="sourceSelect" class="btn source-select" title="手动切换估值数据源">
       <option value="auto">数据源:自动</option>
       <option value="sina">新浪</option>
-      <option value="tiantian">天天基金</option>
+      <option value="tencent">腾讯</option>
     </select>
     <button id="themeBtn" class="btn" title="切换主题(暗/亮/跟随系统)">🌙</button>
   </div>
 </header>
 
-<main>
-  <section id="fundList" class="fund-list">
-    <div class="loading">加载中…</div>
-  </section>
+<div class="app-layout">
+  <main>
+    <section id="fundList" class="fund-list">
+      <div class="loading">加载中…</div>
+    </section>
 
-  <section id="emptyState" class="empty hidden">
-    <div class="empty-icon">🗂️</div>
-    <p>还没有关注的基金,点击上方搜索添加。</p>
-  </section>
-</main>
+    <section id="emptyState" class="empty hidden">
+      <div class="empty-icon">🗂️</div>
+      <p>还没有关注的基金,点击上方搜索添加。</p>
+    </section>
+  </main>
+
+  <aside id="eventFeed" class="event-feed" title="提醒事件流"></aside>
+</div>
 
 <!-- 概要抽屉 -->
 <div id="drawerMask" class="drawer-mask hidden"></div>
@@ -61,7 +65,14 @@
 </aside>
 
 <div id="toast" class="toast hidden"></div>
-<div id="eventFeed" class="event-feed" title="提醒事件流"></div>
+
+<!-- 卡片右键菜单 -->
+<div id="ctxMenu" class="ctx-menu hidden" role="menu">
+  <div class="ctx-item" data-act="detail">📄 概要</div>
+  <div class="ctx-item" data-act="rename">✏️ 改名</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" data-act="remove">🗑 取关</div>
+</div>
 
 <footer class="foot">
   <span id="srcStats" class="src-stats"></span>

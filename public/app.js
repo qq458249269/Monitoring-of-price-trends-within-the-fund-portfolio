@@ -103,11 +103,6 @@ function fundCardHtml(f) {
     </div>
     <div class="fc-foot">
       <span class="fc-trend">日内 ${trendLabel} · 采样 ${f.history ? f.history.length : 0} 点 · 更新 ${fmtTime(f.updatedAt)}</span>
-      <span class="fc-actions">
-        <button class="mini-btn" data-act="detail" data-code="${f.code}">概要</button>
-        <button class="mini-btn" data-act="rename" data-code="${f.code}">改名</button>
-        <button class="mini-btn danger" data-act="remove" data-code="${f.code}">取关</button>
-      </span>
     </div>`;
 }
 
@@ -300,47 +295,86 @@ function monitorPollRefresh() {
   setTimeout(loadFunds, 2500);
 }
 
-/* ---------- 列表操作 ---------- */
+/* ---------- 列表操作(左键打开概要) ---------- */
+async function doRemove(code) {
+  try {
+    await api('/api/funds/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    funds.delete(code);
+    renderList();
+    toast('已取消关注');
+  } catch (err) { toast(err.message); }
+}
+
+async function doRename(code) {
+  const f = funds.get(code);
+  const name = prompt('修改显示名称:', f ? f.name : '');
+  if (name && name.trim()) {
+    try {
+      await api('/api/funds/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, name: name.trim() }),
+      });
+      await loadFunds();
+    } catch (err) { toast(err.message); }
+  }
+}
+
+/* 右键菜单:概要对卡片右键弹出 */
+let ctxCode = null;
+
+function hideCtxMenu() {
+  ctxCode = null;
+  $('#ctxMenu').classList.add('hidden');
+}
+
+function showCtxMenu(code, x, y) {
+  ctxCode = code;
+  const menu = $('#ctxMenu');
+  menu.classList.remove('hidden');
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - rect.width - 6))}px`;
+  menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - rect.height - 6))}px`;
+}
+
 function bindListActions() {
-  $('#fundList').addEventListener('click', async (e) => {
-    const btn = e.target.closest('.mini-btn');
+  $('#fundList').addEventListener('click', (e) => {
     const card = e.target.closest('.fund-card');
     if (!card) return;
-    const code = card.dataset.code;
-    if (btn) {
-      e.stopPropagation();
-      const act = btn.dataset.act;
-      if (act === 'remove') {
-        try {
-          await api('/api/funds/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
-          });
-          funds.delete(code);
-          renderList();
-          toast('已取消关注');
-        } catch (err) { toast(err.message); }
-      } else if (act === 'rename') {
-        const f = funds.get(code);
-        const name = prompt('修改显示名称:', f ? f.name : '');
-        if (name && name.trim()) {
-          try {
-            await api('/api/funds/rename', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code, name: name.trim() }),
-            });
-            await loadFunds();
-          } catch (err) { toast(err.message); }
-        }
-      } else if (act === 'detail') {
-        openDrawer(code);
-      }
-      return;
-    }
-    selectedCode = code;
-    openDrawer(code);
+    selectedCode = card.dataset.code;
+    openDrawer(card.dataset.code);
+  });
+
+  // 右键 → 操作菜单
+  $('#fundList').addEventListener('contextmenu', (e) => {
+    const card = e.target.closest('.fund-card');
+    if (!card) return;
+    e.preventDefault();
+    showCtxMenu(card.dataset.code, e.clientX, e.clientY);
+  });
+
+  $('#ctxMenu').addEventListener('click', (e) => {
+    const item = e.target.closest('.ctx-item');
+    if (!item || ctxCode === null) return;
+    const act = item.dataset.act;
+    const code = ctxCode;
+    hideCtxMenu();
+    if (act === 'detail') openDrawer(code);
+    else if (act === 'rename') doRename(code);
+    else if (act === 'remove') doRemove(code);
+  });
+
+  // 点击其它处 / 滚轮 / Esc 关闭菜单
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#ctxMenu')) hideCtxMenu();
+  });
+  window.addEventListener('scroll', hideCtxMenu, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideCtxMenu();
   });
 }
 

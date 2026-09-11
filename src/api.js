@@ -173,7 +173,7 @@ function createApiHandler({ store, registry, monitor, cfg, log = () => {}, app }
 
       /* ---------- 手动切换估值数据源 ---------- */
       if (pathname === '/api/sources/quote' && req.method === 'GET') {
-        return sendJson(res, 200, { preferred: registry.getPreferredSource(), available: ['auto', 'sina', 'tencent', 'tiantian'] });
+        return sendJson(res, 200, { preferred: registry.getPreferredSource(), available: registry.getAvailableSources() });
       }
       if (pathname === '/api/sources/quote' && req.method === 'POST') {
         const body = await readBody(req);

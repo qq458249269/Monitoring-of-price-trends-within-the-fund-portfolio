@@ -41,6 +41,16 @@ class TokenBucket {
   }
 }
 
+/** host 处于退避期且等待超限时抛出:调用方应切换数据源,而不是干等 */
+class RateLimitBackoffError extends Error {
+  constructor(host, waitMs) {
+    super(`host ${host} 退避期还需 ${Math.round(waitMs / 1000)}s,超出等待上限,放弃本次请求`);
+    this.name = 'RateLimitBackoffError';
+    this.host = host;
+    this.waitMs = waitMs;
+  }
+}
+
 /** 每个 host 的限流状态:令牌桶 + 上次请求时间 + 失败退避 */
 class HostState {
   constructor(opts = {}) {
@@ -103,6 +113,8 @@ class RateLimiter {
     this.maxPerMinute = opts.maxPerMinute ?? 20;
     this.backoffBaseMs = opts.backoffBaseMs ?? 30000;
     this.backoffMaxMs = opts.backoffMaxMs ?? 900000;
+    // acquire 在退避期最多等待多久;超过抛 RateLimitBackoffError,防止死源拖垮同步循环
+    this.maxBackoffWaitMs = opts.maxBackoffWaitMs ?? 5000;
     this._hosts = new Map();
     this._queues = new Map();
   }
@@ -121,7 +133,7 @@ class RateLimiter {
     return st;
   }
 
-  async acquire(host) {
+  async acquire(host, maxBackoffWaitMs = this.maxBackoffWaitMs) {
     const st = this.hostState(host);
     const prev = this._queues.get(host) || Promise.resolve();
     let release;
@@ -130,22 +142,31 @@ class RateLimiter {
     await prev; // 等待同 host 前面的请求完成(串行化,防并发突发)
 
     let waited = 0;
-    for (;;) {
-      const delay = st.nextAllowedDelayMs();
-      if (delay <= 0) break;
-      waited += delay;
-      await new Promise((res) => setTimeout(res, delay));
+    try {
+      for (;;) {
+        const delay = st.nextAllowedDelayMs();
+        if (delay <= 0) break;
+        // 退避期过长:调用方应切换数据源而非干等,避免单次同步被阻塞到分钟级
+        if (st.inBackoff && maxBackoffWaitMs > 0 && delay > maxBackoffWaitMs) {
+          throw new RateLimitBackoffError(host, delay);
+        }
+        waited += delay;
+        await new Promise((res) => setTimeout(res, delay));
+      }
+      st.recordRequest();
+      return {
+        host,
+        waitedMs: waited,
+        finish: (ok, latencyMs) => {
+          if (ok) st.recordSuccess(latencyMs);
+          else st.recordFailure();
+          release();
+        },
+      };
+    } catch (err) {
+      release(); // 异常路径也必须放行队列,否则同 host 后续请求永久挂起
+      throw err;
     }
-    st.recordRequest();
-    return {
-      host,
-      waitedMs: waited,
-      finish: (ok, latencyMs) => {
-        if (ok) st.recordSuccess(latencyMs);
-        else st.recordFailure();
-        release();
-      },
-    };
   }
 
   /** 视图:给 UI 展示各 host 的健康状态 */
@@ -198,4 +219,4 @@ class Backoff {
   }
 }
 
-module.exports = { TokenBucket, HostState, RateLimiter, Backoff };
+module.exports = { TokenBucket, HostState, RateLimiter, Backoff, RateLimitBackoffError };

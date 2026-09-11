@@ -81,7 +81,10 @@ body {
 }
 
 /* ---------- 基金列表 ---------- */
-main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
+/* ---------- 主内容 ---------- */
+/* ---------- 布局:主内容 + 右侧事件面板 ---------- */
+.app-layout { display: flex; align-items: flex-start; min-height: calc(100vh - 120px); }
+main { flex: 1 1 auto; min-width: 0; max-width: 1080px; margin: 0; padding: 18px 22px; }
 .fund-list { display: flex; flex-direction: column; gap: 12px; }
 
 .fund-card {
@@ -114,9 +117,8 @@ main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
 .fc-meta { display: flex; gap: 14px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
 .fc-meta b { color: var(--text); font-weight: 600; }
 
-.fc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.fc-foot { display: flex; align-items: center; margin-top: 8px; }
 .fc-trend { font-size: 11px; color: var(--muted); }
-.fc-actions { display: flex; gap: 8px; }
 .mini-btn {
   background: transparent; border: 1px solid var(--border); color: var(--muted);
   border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer;
@@ -161,28 +163,44 @@ main { max-width: 1080px; margin: 0 auto; padding: 18px 22px; }
 .holder-org { background: #4da3ff; }
 .holder-ind { background: #7c6cf0; }
 
-/* ---------- 事件流 ---------- */
+/* ---------- 事件流(右侧固定面板) ---------- */
 .event-feed {
-  position: fixed; right: 18px; bottom: 54px; width: 300px; max-height: 40vh; overflow-y: auto;
-  z-index: 35; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  position: sticky; top: 0; right: 0; width: 340px; flex-shrink: 0; height: 100vh;
+  z-index: 35; display: flex; flex-direction: column-reverse; gap: 6px;
+  padding: 14px; pointer-events: none; overflow-y: auto;
+  border-left: 1px solid var(--border); background: var(--panel);
 }
 .evt {
-  background: rgba(23,30,38,.96); border: 1px solid var(--border); border-left: 3px solid var(--accent);
-  border-radius: 8px; padding: 8px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
-  animation: slidein .25s ease;
-  pointer-events: auto; cursor: pointer;  /* 父容器 pointer-events:none,需在此恢复点击 */
+  background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 8px 12px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  animation: slidein .25s ease; flex-shrink: 0;
+  pointer-events: auto; cursor: pointer;
 }
 .evt.alert { border-left-color: var(--warn); }
 @keyframes slidein { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---------- 右键菜单 ---------- */
+.ctx-menu {
+  position: fixed; min-width: 132px; z-index: 70;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.5); padding: 5px; font-size: 13px;
+}
+.ctx-item { padding: 7px 12px; border-radius: 6px; cursor: pointer; color: var(--text); }
+.ctx-item:hover { background: var(--panel2); color: var(--accent); }
+.ctx-item.danger:hover { color: var(--up); background: rgba(240,74,74,.12); }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
 /* ---------- 其它 ---------- */
 .empty { text-align: center; color: var(--muted); padding: 60px 0; }
 .empty-icon { font-size: 42px; margin-bottom: 8px; }
 .loading { color: var(--muted); padding: 30px; text-align: center; }
 .foot {
-  position: fixed; bottom: 0; left: 0; right: 0; background: #10161d;
+  position: fixed; bottom: 0; left: 0; right: 340px; background: #10161d;
   border-top: 1px solid var(--border); padding: 8px 18px; font-size: 11px; color: var(--muted);
   display: flex; justify-content: space-between; z-index: 30;
+}
+@media (max-width: 900px) {
+  .foot { right: 0; }
 }
 .toast {
   position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
@@ -209,8 +227,9 @@ body.light { background: var(--bg); color: var(--text); }
 .light .topbar { background: linear-gradient(180deg, #e8ecf1, #e3e7ec); border-bottom-color: var(--border); }
 .light .fund-card { background: var(--panel); border-color: var(--border); }
 .light .fund-card:hover { border-color: #b0bac5; }
-.light .evt { background: rgba(255,255,255,.97); }
+.light .evt { background: var(--panel2); }
 .light .evt.alert { border-left-color: var(--warn); }
+.light .event-feed { background: var(--panel); border-left-color: var(--border); }
 .light .toast { background: #2a3644; color: #fff; }
 .light .search-results { background: var(--panel); border-color: var(--border); }
 .light .sr-item { border-bottom-color: var(--border); }
@@ -221,16 +240,18 @@ body.light { background: var(--bg); color: var(--text); }
 .light .ret-cell { background: var(--panel2); }
 .light .nav-table th, .light .nav-table td { border-bottom-color: #e4e8ed; }
 .light .holder-bar { background: #e4e8ed; }
-.light .evt { background: rgba(255,255,255,.97); }
+.light .evt { background: var(--panel2); }
 .light .foot { background: #e3e7ec; border-top-color: var(--border); }
 .light .toast { background: #f0f1f4; color: var(--text); }
 .light .mini-btn { border-color: var(--border); color: var(--muted); }
 .light .mini-btn:hover { color: var(--text); border-color: var(--accent); }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   #searchInput { width: 100%; }
   .search-results { width: 100%; }
   .topbar { padding: 12px; }
   main { padding: 12px; }
   .fc-estimate { font-size: 18px; }
+  .app-layout { flex-direction: column; }
+  .event-feed { width: 100%; height: auto; max-height: 240px; border-left: none; border-top: 1px solid var(--border); }
 }

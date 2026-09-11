@@ -4,6 +4,7 @@
 
 const sina = require('./sina');
 const tencent = require('./tencent');
+const tencent_enhanced = require('./tencent_enhanced');
 const tiantian = require('./tiantian');
 const eastmoney = require('./eastmoney');
 const danjuan = require('./danjuan');
@@ -24,16 +25,28 @@ const QUOTE_SOURCES = [
     },
   },
   {
-    name: 'tiantian',
+    name: 'tencent',
     fetch: async (limiter, codes, cfg) => {
-      const raw = await tiantian.fetchQuotes(limiter, codes, cfg);
+      const raw = await tencent_enhanced.fetchQuotes(limiter, codes, cfg);
       const out = new Map();
       for (const [code, q] of raw) {
-        out.set(code, { ...q, isNav: false });
+        out.set(code, { ...q });
       }
       return out;
     },
   },
+  // 天天基金 fundgz.1234567.com.cn 已下线(返回 404 页),移除避免每轮尝试拉垮同步;ponytail: 接口恢复后在此加回
+  // {
+  //   name: 'tiantian',
+  //   fetch: async (limiter, codes, cfg) => {
+  //     const raw = await tiantian.fetchQuotes(limiter, codes, cfg);
+  //     const out = new Map();
+  //     for (const [code, q] of raw) {
+  //       out.set(code, { ...q, isNav: false });
+  //     }
+  //     return out;
+  //   },
+  // },
 ];
 
 class SourceRegistry {
@@ -57,6 +70,11 @@ class SourceRegistry {
     if (!valid.includes(name)) return false;
     this.preferredSource = name;
     return true;
+  }
+
+  /** 可用估值源列表(前端下拉框选项) */
+  getAvailableSources() {
+    return ['auto', ...QUOTE_SOURCES.map((s) => s.name)];
   }
 
   getPreferredSource() {
