@@ -208,9 +208,10 @@ function pushEvent(text, isAlert) {
   const feed = $('#eventFeed');
   const div = document.createElement('div');
   div.className = `evt${isAlert ? ' alert' : ''}`;
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   div.textContent = `${isAlert ? '⚠ ' : ''}${text}`;
   if (isAlert) {
-    // 通知提示常驻:加关闭按钮,不自动消失
     const closeBtn = document.createElement('span');
     closeBtn.className = 'evt-close';
     closeBtn.textContent = ' ✕';
@@ -218,8 +219,13 @@ function pushEvent(text, isAlert) {
     closeBtn.onclick = () => div.remove();
     div.appendChild(closeBtn);
   }
-  div.onclick = () => div.remove(); // 点击卡片任意处即可关闭(卡片无其它交互)
+  const timeEl = document.createElement('div');
+  timeEl.className = 'evt-time';
+  timeEl.textContent = ts;
+  div.appendChild(timeEl);
+  div.onclick = () => div.remove();
   feed.prepend(div);
+  feed.scrollTop = 0; // 新消息在最上方,滚动到顶部
   // 仅限非alert事件自动消失(最多8条,5分钟后清除)
   if (isAlert) {
     // alert 类型常驻不自动消失,仅限制显示数量
