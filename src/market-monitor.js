@@ -32,6 +32,7 @@ class MarketMonitor {
     this._lastCum = new Map(); // code -> 上一采样当日累计额(万元)
     this._alerted = new Map(); // code -> {kind, at}
     this._latest = new Map(); // code -> 最新行情
+    this._isTradingTime = isTradingTime; // 可注入,测试用
     this.lastSyncAt = null;
     const mcfg = cfg.market || {};
     this.opts = {
@@ -114,7 +115,7 @@ class MarketMonitor {
       if (arr.length < WARMUP_SAMPLES + 1) continue; // 预热期(含开盘脉冲过滤)
 
       // 收盘后不做异动提示
-      const trading = isTradingTime(new Date(), (this.cfg.closingReport && this.cfg.closingReport.holidays) || []);
+      const trading = this._isTradingTime(new Date(), (this.cfg.closingReport && this.cfg.closingReport.holidays) || []);
       if (!trading) continue;
 
       const increments = arr.slice(-(BASELINE_WINDOW + 1), -1).map((s) => s._inc);

@@ -99,6 +99,7 @@ test('MarketMonitor:跨日累计额重置不产生负增量/误报', async () =>
 
 test('MarketMonitor:盘中脉冲告警一次,30 分钟内去重', async () => {
   const { m, events, feed } = makeMonitor();
+  m._isTradingTime = () => true;
   let cum = 100000;
   for (let i = 0; i < 9; i += 1) {
     cum += 200000;
