@@ -38,7 +38,7 @@ function scheduleUpdateLoop(canonicalExe) {
     if (updateState.checking) return;
     updateState.checking = true;
     try {
-      const r = await checkAndInstall(app, { exePath: canonicalExe, log: logLine });
+      const r = await checkAndInstall(app, { exePath: canonicalExe, log: logLine, checkLock: () => appHandle && appHandle._updChecking });
       updateState.last = { at: Date.now(), ...r };
       if (r.updated && r.needRestart) {
         updateState.ready = true;
@@ -70,6 +70,7 @@ async function bootServer() {
 
   const { startApp } = require(path.join(__dirname, '..', 'server.js'));
   appHandle = await startApp({ log: logLine });
+  appHandle.canonicalExePath = canonical.exePath;
 
   // 服务器事件 → 原生通知
   const { monitor } = appHandle;

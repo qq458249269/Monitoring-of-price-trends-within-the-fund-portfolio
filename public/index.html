@@ -46,7 +46,16 @@
     </section>
   </main>
 
-  <aside id="eventFeed" class="event-feed" title="提醒事件流"></aside>
+  <aside class="event-panel" aria-label="通知">
+    <div class="event-head">
+      <strong>通知 <span id="eventCount">0</span></strong>
+      <button id="eventLatest" class="mini-btn hidden" type="button">查看新通知</button>
+      <button id="eventClear" class="mini-btn" type="button">清空</button>
+    </div>
+    <div id="eventFeed" class="event-feed" tabindex="0" aria-label="通知列表">
+      <div id="eventEmpty" class="event-empty">暂无通知</div>
+    </div>
+  </aside>
 </div>
 
 <!-- 概要抽屉 -->

@@ -71,20 +71,36 @@ function pickAsset(rel, kind) {
 }
 
 /** 下载文件到临时路径(支持 http(s) 与 file:// — 后者供本地/测试使用) */
-async function downloadTo(url, destFile) {
+async function downloadTo(url, destFile, { onProgress } = {}) {
   if (url.startsWith('file://')) {
     const src = new URL(url).pathname.replace(/^\/([A-Za-z]:)/, '$1'); // Windows /D:/ → D:/
     fs.copyFileSync(src, destFile);
-    return fs.statSync(destFile).size;
+    const size = fs.statSync(destFile).size;
+    if (onProgress) onProgress(size, size);
+    return size;
   }
   const res = await fetch(url, {
     headers: { 'User-Agent': 'fund-trend-monitor-updater' },
     signal: AbortSignal.timeout(600000),
   });
   if (!res.ok) throw new Error(`下载失败 HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(destFile, buf);
-  return buf.length;
+  const total = Number(res.headers.get('content-length')) || 0;
+  const file = fs.createWriteStream(destFile);
+  const reader = res.body.getReader();
+  let received = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      file.write(value);
+      received += value.length;
+      if (onProgress) onProgress(received, total);
+    }
+  } finally {
+    file.end();
+    await new Promise((resolve) => file.on('finish', resolve));
+  }
+  return received;
 }
 
 function sha256(file) {

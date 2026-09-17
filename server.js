@@ -133,37 +133,52 @@ function startApp({ log, port, host } = {}) {
     updater.cleanupOldVersions(exePath); // 启动清理 *.old.* 备份
   }
 
+  /** 获取自我替换目标路径:SEA 用 process.execPath,Electron 用 canonical exe,其它 null */
+  function getExePath() {
+    if (inSea()) return exePath;
+    if (app.canonicalExePath) return app.canonicalExePath;
+    return null;
+  }
+
   /** 检查更新;apply=true 时下载校验并替换,返回是否需要重启 */
   app.checkUpdate = async (apply = false) => {
-    const rel = await updater.fetchLatestRelease();
-    if (!rel) return { ok: true, upToDate: true, reason: 'no release yet', version: app.version };
-    const cmp = updater.compareVersions(rel.version, app.version);
-    if (cmp <= 0) return { ok: true, upToDate: true, version: app.version, latest: rel.version };
-    const asset = updater.pickAsset(rel, inSea() ? 'sea' : 'desktop');
-    if (!asset) return { ok: false, error: `release ${rel.version} 没有 exe 资产` };
-    if (!apply) return { ok: true, upToDate: false, version: app.version, latest: rel.version, asset: asset.name, notes: rel.releaseNotes };
-    if (!exePath) return { ok: false, error: '当前运行方式不支持自我替换(源码模式请 git pull)' };
-    log(`发现新版本 ${rel.version},开始下载 ${asset.name}…`);
-    const r = await updater.applyUpdate({
-      currentExePath: exePath,
-      exeUrl: asset.url,
-      sumsUrl: (rel.assets.find((a) => a.name === 'SHA256SUMS.txt') || {}).url || null,
-      assetName: asset.name,
-      dataDir: path.dirname(exePath),
-    });
-    log(`更新完成:${(r.bytes / 1024 / 1024).toFixed(1)} MB,旧版备份于 ${r.backupPath}`);
-    return { ok: true, upToDate: false, updated: true, version: app.version, latest: rel.version, ...r, needRestart: true };
+    if (app._updChecking) return { ok: false, error: '正在检查更新,请稍候' };
+    app._updChecking = true;
+    try {
+      const rel = await updater.fetchLatestRelease();
+      if (!rel) return { ok: true, upToDate: true, reason: 'no release yet', version: app.version };
+      const cmp = updater.compareVersions(rel.version, app.version);
+      if (cmp <= 0) return { ok: true, upToDate: true, version: app.version, latest: rel.version };
+      const asset = updater.pickAsset(rel, inSea() ? 'sea' : 'desktop');
+      if (!asset) return { ok: false, error: `release ${rel.version} 没有 exe 资产` };
+      if (!apply) return { ok: true, upToDate: false, version: app.version, latest: rel.version, asset: asset.name, notes: rel.releaseNotes };
+      const target = getExePath();
+      if (!target) return { ok: false, error: '当前运行方式不支持自动更新(源码模式请 git pull)' };
+      log(`发现新版本 ${rel.version},开始下载 ${asset.name}…`);
+      const r = await updater.applyUpdate({
+        currentExePath: target,
+        exeUrl: asset.url,
+        sumsUrl: (rel.assets.find((a) => a.name === 'SHA256SUMS.txt') || {}).url || null,
+        assetName: asset.name,
+        dataDir: path.dirname(target),
+      });
+      log(`更新完成:${(r.bytes / 1024 / 1024).toFixed(1)} MB,旧版备份于 ${r.backupPath}`);
+      return { ok: true, upToDate: false, updated: true, version: app.version, latest: rel.version, ...r, needRestart: true };
+    } finally {
+      app._updChecking = false;
+    }
   };
 
-  /** 重启进入新版本:SEA 直接 exec;需先落盘并关端口 */
+  /** 重启进入新版本:SEA/Electron 直接 exec;其它返回提示 */
   app.restartIntoUpdate = async () => {
     await app.stop();
-    if (inSea()) {
-      const child = updater.relaunchSea(exePath, process.argv.slice(1));
+    const target = getExePath();
+    if (target) {
+      const child = updater.relaunchSea(target, process.argv.slice(1));
       log(`已拉起新版本进程 pid=${child.pid},当前进程退出`);
       process.exit(0);
     }
-    return { ok: false, error: 'desktop 版请在系统通知/菜单中重启,或手动重开' };
+    return { ok: false, error: '当前运行方式不支持自动重启,请手动重启应用' };
   };
 
   // 后台定时检查(默认 6h,可关:update.enabled=false)

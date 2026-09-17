@@ -47,7 +47,8 @@ function ensureCanonicalCopy(app) {
 }
 
 /** 定时检查更新;发现新版本时下载校验并替换规范 exe,返回是否已就绪待重启 */
-async function checkAndInstall(app, { exePath, log }) {
+async function checkAndInstall(app, { exePath, log, checkLock }) {
+  if (checkLock && checkLock()) return { upToDate: true, reason: 'manual check in progress' };
   const rel = await updater.fetchLatestRelease();
   if (!rel) return { upToDate: true, reason: 'no release yet' };
   const current = app.getVersion();

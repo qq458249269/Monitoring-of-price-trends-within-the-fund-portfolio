@@ -191,8 +191,9 @@ function connectStream() {
     try {
       const a = JSON.parse(e.data);
       const icon = a.type === 'anomaly' ? '⚡' : '⚠';
-      pushEvent(`${a.message}`, true);
-      toast(`${icon} ${a.message}`, 6000);
+      if (pushEvent(a.message, true, { id: `alert:${a.code}:${a.type}:${a.at}:${a.message}`, at: a.at })) {
+        toast(`${icon} ${a.message}`, 6000);
+      }
     } catch { /* ignore */ }
   });
   es.addEventListener('closing-report', (e) => {
@@ -204,36 +205,95 @@ function connectStream() {
   es.onerror = () => { /* EventSource 自动重连 */ };
 }
 
-function pushEvent(text, isAlert) {
+const eventEntries = new Map();
+const seenEvents = new Map();
+let eventSequence = 0;
+
+function refreshEventState() {
+  $('#eventCount').textContent = String(eventEntries.size);
+  $('#eventEmpty').classList.toggle('hidden', eventEntries.size > 0);
+  if (!eventEntries.size || $('#eventFeed').scrollTop <= 8) {
+    $('#eventLatest').classList.add('hidden');
+  }
+}
+
+function mutateEvents(change) {
   const feed = $('#eventFeed');
+  const atTop = feed.scrollTop <= 8;
+  const top = feed.getBoundingClientRect().top;
+  const anchor = [...feed.querySelectorAll('.evt')].find((el) => el.getBoundingClientRect().bottom > top);
+  const offset = anchor ? anchor.getBoundingClientRect().top : 0;
+  change();
+  if (atTop) feed.scrollTop = 0;
+  else if (anchor && anchor.isConnected) {
+    void anchor.offsetHeight;
+    feed.scrollTop += anchor.getBoundingClientRect().top - offset;
+  }
+  refreshEventState();
+}
+
+function removeEvent(key) {
+  const entry = eventEntries.get(key);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  entry.element.remove();
+  eventEntries.delete(key);
+}
+
+function pushEvent(text, isAlert = false, options = {}) {
+  if (!text) return false;
+  const now = Date.now();
+  for (const [key, time] of seenEvents) {
+    if (now - time > 5 * 60 * 1000) seenEvents.delete(key);
+  }
+  const key = options.id || `${isAlert}:${text}`;
+  if (seenEvents.has(key)) return false;
+  seenEvents.set(key, now);
+  while (seenEvents.size > 500) seenEvents.delete(seenEvents.keys().next().value);
+  const feed = $('#eventFeed');
+  const reading = feed.scrollTop > 8;
   const div = document.createElement('div');
   div.className = `evt${isAlert ? ' alert' : ''}`;
-  const now = new Date();
-  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  div.textContent = `${isAlert ? '⚠ ' : ''}${text}`;
-  if (isAlert) {
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'evt-close';
-    closeBtn.textContent = ' ✕';
-    closeBtn.style.cssText = 'cursor:pointer;float:right;margin-left:8px;opacity:.6;font-size:11px';
-    closeBtn.onclick = () => div.remove();
-    div.appendChild(closeBtn);
-  }
+  const entryKey = ++eventSequence;
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'evt-close';
+  closeBtn.textContent = '×';
+  closeBtn.setAttribute('aria-label', '删除通知');
+  closeBtn.onclick = () => mutateEvents(() => removeEvent(entryKey));
+  const content = document.createElement('span');
+  content.textContent = text;
   const timeEl = document.createElement('div');
   timeEl.className = 'evt-time';
-  timeEl.textContent = ts;
-  div.appendChild(timeEl);
-  div.onclick = () => div.remove();
-  feed.prepend(div);
-  feed.scrollTop = 0; // 新消息在最上方,滚动到顶部
-  // 仅限非alert事件自动消失(最多8条,5分钟后清除)
-  if (isAlert) {
-    // alert 类型常驻不自动消失,仅限制显示数量
-    while (feed.children.length > 12) feed.removeChild(feed.lastChild);
-  } else {
-    while (feed.children.length > 8) feed.removeChild(feed.lastChild);
-    setTimeout(() => div.remove(), 5 * 60 * 1000);
-  }
+  timeEl.textContent = fmtTime(options.at || now);
+  div.append(closeBtn, content, timeEl);
+  mutateEvents(() => {
+    const timer = isAlert ? null : setTimeout(() => mutateEvents(() => removeEvent(entryKey)), 5 * 60 * 1000);
+    eventEntries.set(entryKey, { element: div, timer, isAlert });
+    feed.prepend(div);
+    const normal = [...eventEntries].filter(([, entry]) => !entry.isAlert);
+    for (const [oldKey] of normal.slice(0, Math.max(0, normal.length - 20))) removeEvent(oldKey);
+    const alerts = [...eventEntries].filter(([, entry]) => entry.isAlert);
+    for (const [oldKey] of alerts.slice(0, Math.max(0, alerts.length - 12))) removeEvent(oldKey);
+    while (eventEntries.size > 50) {
+      const oldestNormal = [...eventEntries].find(([, entry]) => !entry.isAlert);
+      removeEvent(oldestNormal ? oldestNormal[0] : eventEntries.keys().next().value);
+    }
+  });
+  if (reading) $('#eventLatest').classList.remove('hidden');
+  return true;
+}
+
+function bindEventFeed() {
+  $('#eventFeed').addEventListener('scroll', refreshEventState, { passive: true });
+  $('#eventLatest').addEventListener('click', () => {
+    $('#eventFeed').scrollTop = 0;
+    refreshEventState();
+  });
+  $('#eventClear').addEventListener('click', () => mutateEvents(() => {
+    for (const key of eventEntries.keys()) removeEvent(key);
+  }));
+  refreshEventState();
 }
 
 /* ---------- 搜索 ---------- */
@@ -510,7 +570,7 @@ function renderClosingReport(r) {
     `    ${x.name}(${x.code}) ${fmtRate(x.estimateRate)}`).join('\n');
   const more = items.length > 5 ? `\n    … 共 ${items.length} 只` : '';
   const summary = `📊 ${r.time} 收盘预估:均 ${fmtRate(r.avgRate)} · 涨${items.filter((x) => x.estimateRate > 0).length}/跌${items.filter((x) => x.estimateRate < 0).length}`;
-  pushEvent(`${summary}\n${lines}${more}`, true);
+  if (!pushEvent(`${summary}\n${lines}${more}`, true, { id: `closing:${r.at}:${r.time}`, at: r.at })) return;
   toast(summary, 6000);
   // 控制台输出完整报告便于复制
   console.log(`[收盘预估 ${r.time}]`, r);
@@ -530,8 +590,11 @@ function bindClosingReportBtn() {
 }
 
 /* ---------- 自动更新 ---------- */
+let _updating = false;
 function bindUpdateBtn() {
   $('#updateBtn').addEventListener('click', async () => {
+    if (_updating) return;
+    _updating = true;
     const btn = $('#updateBtn');
     btn.disabled = true;
     btn.textContent = '⏳ 检查中…';
@@ -542,6 +605,7 @@ function bindUpdateBtn() {
       } else if (r.error) {
         toast(`更新失败:${r.error}`);
       } else if (r.needRestart) {
+        btn.textContent = '🔄 重启中…';
         toast(`新版本 ${r.latest} 已就绪,正在重启…`, 6000);
         setTimeout(async () => {
           try { await api('/api/update/restart', { method: 'POST' }); } catch { /* 进程退出导致的中断属预期 */ }
@@ -552,6 +616,7 @@ function bindUpdateBtn() {
     } catch (err) {
       toast(`更新检查失败:${err.message}`);
     } finally {
+      _updating = false;
       btn.disabled = false;
       btn.textContent = '⬆ 更新';
     }
@@ -665,6 +730,7 @@ function refreshSourcesLoop() {
 bindSearch();
 bindListActions();
 bindDrawer();
+bindEventFeed();
 bindSyncBtn();
 bindClosingReportBtn();
 bindUpdateBtn();
