@@ -203,19 +203,65 @@ function startApp({ log, port, host } = {}) {
     return origStop();
   })(app.stop);
 
+  /** 端口不可用:EADDRINUSE 被占 / EACCES 被系统排除区间保留(Windows Hyper-V/WSL) */
+  const portUnavailable = (code) => code === 'EADDRINUSE' || code === 'EACCES';
+
+  /** Windows:解析 netsh 保留端口区间一次,命中则直接跳到区间末尾之后,避免逐口空转 */
+  let winExcluded = null;
+  const winSkipPort = (p) => {
+    if (process.platform !== 'win32') return p;
+    try {
+      if (winExcluded === null) {
+        winExcluded = [];
+        const out = require('child_process').execSync(
+          'netsh interface ipv4 show excludedportrange protocol=tcp',
+          { encoding: 'utf8', windowsHide: true });
+        for (const m of out.matchAll(/^\s*(\d{4,5})\s+(\d{4,5})\s*$/gm)) {
+          winExcluded.push([+m[1], +m[2]]);
+        }
+      }
+      for (const [lo, hi] of winExcluded) {
+        if (p >= lo && p <= hi) return hi + 1;
+      }
+    } catch { /* netsh 不可用则退化逐口重试 */ }
+    return p;
+  };
+
   return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(cfg.server.port, cfg.server.host, () => {
-      monitor.start();
-      log(`基金趋势监测服务 ${app.url} · v${app.version}`);
-      resolve(app);
-    });
+    const MAX_TRIES = 20;
+    let tries = 0;
+    let started = false;
+    let onStartErr = null;
+    const tryListen = () => {
+      onStartErr = (err) => {
+        server.removeListener('error', onStartErr);
+        if (portUnavailable(err.code) && !started && tries < MAX_TRIES) {
+          tries += 1;
+          const next = winSkipPort(cfg.server.port + 1);
+          log(`端口 ${cfg.server.port} 不可用(${err.code}),改用 ${next}`);
+          cfg.server.port = next;
+          tryListen();
+        } else {
+          reject(err);
+        }
+      };
+      server.once('error', onStartErr);
+      server.listen(cfg.server.port, cfg.server.host, () => {
+        server.removeListener('error', onStartErr);
+        started = true;
+        app.url = `http://${cfg.server.host}:${cfg.server.port}`;
+        monitor.start();
+        log(`基金趋势监测服务 ${app.url} · v${app.version}`);
+        resolve(app);
+      });
+    };
+    tryListen();
+    // 成功启动后端口失效(自我更新替换 exe 时旧进程未退干净)→ 顺延重听
     server.on('error', (err) => {
-      // 自我重启时旧进程尚未释放端口 → 自动换下一个端口重试
-      if (err.code === 'EADDRINUSE' && process.env.FUNDMON_PORT_RETRY !== '1') {
+      if (started && portUnavailable(err.code) && process.env.FUNDMON_PORT_RETRY !== '1') {
         process.env.FUNDMON_PORT_RETRY = '1';
-        cfg.server.port += 1;
-        log(`端口被占(可能上次自我更新未退干净),改用 ${cfg.server.port}`);
+        cfg.server.port = winSkipPort(cfg.server.port + 1);
+        log(`端口被占/被保留,改用 ${cfg.server.port}`);
         server.listen(cfg.server.port, cfg.server.host);
       }
     });
